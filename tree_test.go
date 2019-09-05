@@ -971,22 +971,17 @@ var result Value
 
 func BenchmarkSparseInt32Search(b *testing.B){
 	size := 16000000 // 16m
-	buf := new(bytes.Buffer)
-	buf.Grow(4)
+	buf := make([]byte, 4)
 	tree := New()
 	keys := make([]int32, size)	
 	for i := 0; i < size; i++ {
 		var key int32
 		for {
-			buf.Reset()
 			key = rand.Int31()		
-			if err := binary.Write(buf, binary.BigEndian, key); err != nil {
-				b.Fatalf("converting %d to bytes failed in setup %v", key, err)
-			}
-			bytes := buf.Bytes()
-			_, ok := tree.Search(bytes)
+			binary.BigEndian.PutUint32(buf, uint32(key)) 
+			_, ok := tree.Search(buf)
 			if !ok { // new key
-				tree.Insert(bytes, "value")
+				tree.Insert(buf, "value")
 				keys[i] = key
 				break
 			}
@@ -994,13 +989,11 @@ func BenchmarkSparseInt32Search(b *testing.B){
 	}
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		index := rand.Int31n(int32(size))
-		toLookup := keys[index]
-		buf.Reset()
-		if err := binary.Write(buf, binary.BigEndian, toLookup); err != nil {
-			b.Fatalf("converting %d to bytes failed in benchmark %v", toLookup, err)
+		// index := rand.Int31n(int32(size))
+		for i := 0; i < size; i++ {
+			binary.BigEndian.PutUint32(buf, uint32(keys[i])) 
+			result, _ = tree.Search(buf)
 		}
-		result, _ = tree.Search(buf.Bytes())
 	}
 }
 
