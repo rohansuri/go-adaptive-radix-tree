@@ -1,5 +1,4 @@
 package art
-
 import (
 	"bufio"
 	"bytes"
@@ -8,7 +7,8 @@ import (
 	"sort"
 	"testing"
 	//"strings"
-
+	"math/rand"
+	"encoding/binary"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -964,6 +964,43 @@ func BenchmarkWordsTreeInsert(b *testing.B) {
 		for _, w := range words {
 			tree.Insert(w, w)
 		}
+	}
+}
+
+var result Value 
+
+func BenchmarkSparseInt32Search(b *testing.B){
+	size := 16000000 // 16m
+	buf := new(bytes.Buffer)
+	buf.Grow(4)
+	tree := New()
+	keys := make([]int32, size)	
+	for i := 0; i < size; i++ {
+		var key int32
+		for {
+			buf.Reset()
+			key = rand.Int31()		
+			if err := binary.Write(buf, binary.BigEndian, key); err != nil {
+				b.Fatalf("converting %d to bytes failed in setup %v", key, err)
+			}
+			bytes := buf.Bytes()
+			_, ok := tree.Search(bytes)
+			if !ok { // new key
+				tree.Insert(bytes, "value")
+				keys[i] = key
+				break
+			}
+		}
+	}
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		index := rand.Int31n(int32(size))
+		toLookup := keys[index]
+		buf.Reset()
+		if err := binary.Write(buf, binary.BigEndian, toLookup); err != nil {
+			b.Fatalf("converting %d to bytes failed in benchmark %v", toLookup, err)
+		}
+		result, _ = tree.Search(buf.Bytes())
 	}
 }
 
